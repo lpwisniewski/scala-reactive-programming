@@ -29,7 +29,27 @@ object Main {
   /** Create an actors that starts i actors in parallel, each of them should
     * send to [[reply]] a random number
     */
-  def exercise2(): Behavior[ShowRandomNumbers] = ???
+  def exercise2(): Behavior[ShowRandomNumbers] = Behaviors.receive {
+    (context, input) =>
+      for (i <- 1L to input.i) {
+        val ref = context.spawn(random, s"random-$i")
+        ref ! RandomNumber(input.reply)
+        ref ! Kill()
+      }
+      Behaviors.same
+  }
+
+  trait RandomProtocol
+  case class RandomNumber(reply: ActorRef[Int]) extends RandomProtocol
+  case class Kill() extends RandomProtocol
+  def random: Behavior[RandomProtocol] = Behaviors.receive { (context, input) =>
+    input match {
+      case RandomNumber(reply) =>
+        reply ! Random.nextInt()
+        Behaviors.same
+      case Kill() => Behaviors.stopped
+    }
+  }
 
   /** Implement the parMap operator based on actors. You can assume that there
     * is only one [[ParMapQuery]] received.
