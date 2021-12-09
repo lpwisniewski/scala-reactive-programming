@@ -68,7 +68,45 @@ object Main {
     */
   case class Result[A, B](result: B) extends ParProtocol[A, B]
 
-  def exercise3[A, B](): Behavior[ParProtocol[A, B]] = ???
+  def exercise3[A, B](): Behavior[ParProtocol[A, B]] = Behaviors.receive {
+    (context, input) =>
+      input match {
+        case ParMapQuery(list, operation, returnRef) =>
+          list.foreach { item =>
+            val processActor =
+              context.spawn(process[A, B], s"process-${Random.nextInt}")
+            processActor ! Query(item, operation, context.self)
+          }
+          parMapBehavior(returnRef, List.empty, list.size)
+        case Result(_) =>
+          Behaviors.same
+      }
+  }
+
+  def parMapBehavior[A, B](
+      returnActor: ActorRef[List[B]],
+      pendingResult: List[B],
+      listSize: Int
+  ): Behavior[ParProtocol[A, B]] = Behaviors.receive { (context, input) =>
+    input match {
+      case ParMapQuery(_, _, _) =>
+        Behaviors.same
+      case Result(result) =>
+        val aggregatedResult = pendingResult :+ result
+        if (aggregatedResult.size == listSize) {
+          returnActor ! aggregatedResult
+          Behaviors.stopped
+        } else
+          parMapBehavior(returnActor, aggregatedResult, listSize)
+    }
+  }
+
+  case class Query[A, B](a: A, operation: A => B, reply: ActorRef[Result[A, B]])
+  def process[A, B]: Behavior[Query[A, B]] = Behaviors.receive {
+    (context, input) =>
+      input.reply ! Result(input.operation(input.a))
+      Behaviors.stopped
+  }
 
   // Once you've implemented the exercice3, you now have access to list.parMap
   // operator thanks the implicit class ImprovedList. Congrats
