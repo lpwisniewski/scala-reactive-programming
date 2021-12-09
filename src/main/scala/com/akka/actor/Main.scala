@@ -80,7 +80,28 @@ object Main {
   trait Calculus
   case class Add(a: Int, b: Int, ref: ActorRef[Int]) extends Calculus
   case class Multiply(a: Int, b: Int, ref: ActorRef[Int]) extends Calculus
-  def exercise4(): Behavior[Calculus] = ???
+  def exercise4(): Behavior[Calculus] = Behaviors.setup { context =>
+    val addActor = context.spawn(addBehavior, "add")
+    val multiplyActor = context.spawn(multiplyBehavior, "mult")
+    Behaviors.receive { (context, input) =>
+      input match {
+        case a: Add      => addActor ! a
+        case m: Multiply => multiplyActor ! m
+      }
+      Behaviors.same
+    }
+  }
+
+  def addBehavior: Behavior[Add] = Behaviors.receive { (context, input) =>
+    input.ref ! input.a + input.b
+    Behaviors.same
+  }
+
+  def multiplyBehavior: Behavior[Multiply] = Behaviors.receive {
+    (context, input) =>
+      input.ref ! input.a * input.b
+      Behaviors.same
+  }
 
   /** Reimplement the 3rd exercise with a pooling mechanism.
     */
