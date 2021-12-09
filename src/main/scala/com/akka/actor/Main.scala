@@ -18,7 +18,11 @@ object Main {
   /** Create an actor that sends to [[reply]] the next fibonacci number at each
     * new message received. Start with 0
     */
-  def exercise1(): Behavior[PrintNextFibonacci] = ???
+  def exercise1(current: Int = 0, last: Int = 1): Behavior[PrintNextFibonacci] =
+    Behaviors.receive { (context, input) =>
+      input.reply ! current
+      exercise1(current + last, current)
+    }
 
   case class ShowRandomNumbers(i: Long, reply: ActorRef[Int])
 
